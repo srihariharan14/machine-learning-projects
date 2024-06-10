@@ -48,18 +48,37 @@ def get_videos(channel_id):
                 print(f"An error occurred: {e}")
                 continue
 
+            comments = []
+            try:
+                # Fetch comments for the video
+                comment_request = youtube.commentThreads().list(
+                    part="snippet",
+                    videoId=video_id,
+                    maxResults=100
+                )
+                comment_response = comment_request.execute()
+
+                for comment_item in comment_response.get('items', []):
+                    comment = comment_item['snippet']['topLevelComment']['snippet']['textDisplay']
+                    # You can fetch reactions for each comment here if needed
+                    comments.append(comment)
+            except googleapiclient.errors.HttpError as e:
+                print(f"An error occurred while fetching comments: {e}")
+                continue
+
             for video in video_details.get('items', []):
                 title = video['snippet']['title']
                 description = video['snippet']['description']
                 likes = video['statistics'].get('likeCount', 'N/A')
                 views = video['statistics'].get('viewCount', 'N/A')
-                comments = video['statistics'].get('commentCount', 'N/A')
+                comments_count = len(comments)
                 videos.append({
                     'Title': title,
                     'Description': description,
                     'Likes': likes,
                     'Views': views,
-                    'Comments': comments
+                    'Comments': comments_count,
+                    'All_Comments': comments  # Append all comments to the dictionary
                 })
 
         page_token = response.get('nextPageToken')
@@ -88,4 +107,4 @@ channel_id = "UCG8rbF3g2AMX70yOd8vqIZg"
 video_details = get_videos(channel_id)
 
 # Check if data is fetched and save it
-save_to_csv(video_details, 'logan_paul_videos.csv')
+save_to_csv(video_details, 'logan_paul_videos_with_comments.csv')
