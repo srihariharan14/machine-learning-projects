@@ -52,19 +52,38 @@ def get_videos(channel_id):
             try:
                 # Fetch comments for the video
                 comment_request = youtube.commentThreads().list(
-                    part="snippet",
+                    part="snippet,replies",
                     videoId=video_id,
                     maxResults=100
                 )
                 comment_response = comment_request.execute()
 
                 for comment_item in comment_response.get('items', []):
-                    comment = comment_item['snippet']['topLevelComment']['snippet']['textDisplay']
-                    # You can fetch reactions for each comment here if needed
-                    comments.append(comment)
+                    top_comment = comment_item['snippet']['topLevelComment']['snippet']
+                    comment_data = {
+                        'Comment': top_comment['textDisplay'],
+                        'Likes': top_comment.get('likeCount', 'N/A'),
+                        'PublishedAt': top_comment.get('publishedAt', 'N/A')
+                    }
+                    # Fetch replies to the comment
+                    replies = []
+                    if 'replies' in comment_item:
+                        for reply in comment_item['replies']['comments']:
+                            reply_data = {
+                                'Reply': reply['snippet']['textDisplay'],
+                                'Likes': reply['snippet'].get('likeCount', 'N/A'),
+                                'PublishedAt': reply['snippet'].get('publishedAt', 'N/A')
+                            }
+                            replies.append(reply_data)
+                    comment_data['Replies'] = replies
+                    comments.append(comment_data)
             except googleapiclient.errors.HttpError as e:
-                print(f"An error occurred while fetching comments: {e}")
-                continue
+                if "commentsDisabled" in str(e):
+                    print(f"Comments are disabled for video ID {video_id}. Skipping...")
+                    continue
+                else:
+                    print(f"An error occurred while fetching comments: {e}")
+                    continue
 
             for video in video_details.get('items', []):
                 title = video['snippet']['title']
@@ -107,4 +126,4 @@ channel_id = "UCG8rbF3g2AMX70yOd8vqIZg"
 video_details = get_videos(channel_id)
 
 # Check if data is fetched and save it
-save_to_csv(video_details, 'logan_paul_videos_with_comments.csv')
+save_to_csv(video_details, 'logan_paul_videos_with_comments_and_reactions.csv')
